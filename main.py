@@ -1,6 +1,3 @@
-import os
-import sys
-import shutil
 
 
 MYGIT_DIR = ".mygit"
@@ -11,6 +8,7 @@ IGNORE_FILE = ".mygitignore"
 
 
 def get_ignored_files():
+    import os
     ignored = set()
 
     if os.path.exists(IGNORE_FILE):
@@ -32,6 +30,7 @@ def should_ignore(path, ignored):
 
 
 def init():
+    import os
     if os.path.exists(MYGIT_DIR):
         print("Repository already initialized")
         return
