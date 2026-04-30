@@ -1,96 +1,157 @@
-
+import os
+import sys
+import shutil
 
 MYGIT_DIR = ".mygit"
 COMMITS_DIR = os.path.join(MYGIT_DIR, "commits")
-MESSAGE_DIR = os.path.join(MYGIT_DIR, ".message")
 SEQUENCE_FILE = os.path.join(MYGIT_DIR, ".sequence")
 IGNORE_FILE = ".mygitignore"
 
 
-def get_ignored_files():
-    import os
-    ignored = set()
-
+def get_ignored_patterns():
+    # то что не копировать
+    ignored = {MYGIT_DIR, IGNORE_FILE}
     if os.path.exists(IGNORE_FILE):
-        with open(IGNORE_FILE, "r") as f:
+        with open(IGNORE_FILE, "r", encoding="utf-8") as f:
             for line in f:
-                line = line.strip()
-                if line:
-                    ignored.add(line)
-
-    ignored.add(MYGIT_DIR)
+                name = line.strip()
+                if name:
+                    ignored.add(name)
     return ignored
 
 
-def should_ignore(path, ignored):
-    for item in ignored:
-        if path.startswith(item):
+def is_ignored(path, ignored_set):
+    parts = path.split(os.sep)  # сплитим путь на части: ['folder', 'sub', 'file.txt']
+    for part in parts:
+        if part in ignored_set:
             return True
     return False
 
 
 def init():
-    import os
     if os.path.exists(MYGIT_DIR):
         print("Repository already initialized")
         return
-
     os.makedirs(COMMITS_DIR)
-    os.makedirs(MESSAGE_DIR)
-
     with open(SEQUENCE_FILE, "w") as f:
         f.write("1")
-
     print("Initialized empty mygit repository")
 
 
-def get_next_commit_id():
+def commit(message):
+    if not os.path.exists(MYGIT_DIR):
+        print("Error: Repository not initialized")
+        return
+
+    # Читаем номер коммита
     with open(SEQUENCE_FILE, "r") as f:
-        return int(f.read())
+        commit_id = f.read().strip()
 
+    ignored = get_ignored_patterns()
+    dest_path = os.path.join(COMMITS_DIR, commit_id, "root")
 
-def collect_files(ignore):
-    all_files = []
+    files_count = 0
 
+    # Проходим по всем файлам проекта
     for root, dirs, files in os.walk("."):
-        dirs[:] = [d for d in dirs if d not in ignore]
-
         for file in files:
-            file_path = os.path.join(root, file)
-            rel_path = os.path.relpath(file_path, ".")
+            # Склеиваем полный путь к файлу
+            full_path = os.path.join(root, file)
+            # убираем '.' в начале
+            rel_path = os.path.relpath(full_path, ".")
 
-            if not should_ignore(rel_path, ignore):
-                all_files.append((file_path, rel_path))
+            # ПРОВЕРКА: если файл или любая папка в его пути (в игноре) — пропускаем
+            if is_ignored(rel_path, ignored):
+                continue
 
-    return all_files
+            # Копируем
+            dst_file = os.path.join(dest_path, rel_path)
+            os.makedirs(os.path.dirname(dst_file), exist_ok=True)
+            shutil.copy2(full_path, dst_file)
+            files_count += 1
+
+    # Сохраняем описание
+    msg_path = os.path.join(COMMITS_DIR, commit_id, "message.txt")
+    with open(msg_path, "w", encoding="utf-8") as f:
+        f.write(message)
+
+    # Обновляем счетчик
+    with open(SEQUENCE_FILE, "w") as f:
+        f.write(str(int(commit_id) + 1))
+
+    print(f"Committed as {commit_id}. Files saved: {files_count}")
 
 
 def commit(message):
-    import os
-    import shutil
     if not os.path.exists(MYGIT_DIR):
-        print("Repository not initialized")
+        print("Error: Repository not initialized")
         return
 
-    ignore = get_ignored_files()
-    commit_id = get_next_commit_id()
+    # Читаем номер коммита
+    with open(SEQUENCE_FILE, "r") as f:
+        commit_id = f.read().strip()
 
-    commit_path = os.path.join(COMMITS_DIR, str(commit_id))
-    os.makedirs(commit_path)
+    ignored = get_ignored_patterns()
+    dest_path = os.path.join(COMMITS_DIR, commit_id, "root")
 
-    # сохраняем сообщение отдельно
-    with open(os.path.join(MESSAGE_DIR, str(commit_id)), "w") as f:
+    files_count = 0
+    # Проходим по всем файлам проекта
+    for root, dirs, files in os.walk("."):
+        for file in files:
+            # Склеиваем полный путь к файлу
+            full_path = os.path.join(root, file)
+            # Делаем его относительным (убираем '.' в начале)
+            rel_path = os.path.relpath(full_path, ".")
+
+            # ПРОВЕРКА: если файл или любая папка (в его пути) в игноре — пропускаем
+            if is_ignored(rel_path, ignored):
+                continue
+
+            # Копируем
+            dst_file = os.path.join(dest_path, rel_path)
+            os.makedirs(os.path.dirname(dst_file), exist_ok=True)
+            shutil.copy2(full_path, dst_file)
+            files_count += 1
+
+    # Сохраняем описание
+    msg_path = os.path.join(COMMITS_DIR, commit_id, "message.txt")
+    with open(msg_path, "w", encoding="utf-8") as f:
         f.write(message)
 
-    files = collect_files(ignore)
-
-    for src, rel in files:
-        dst = os.path.join(commit_path, rel)
-        os.makedirs(os.path.dirname(dst), exist_ok=True)
-        shutil.copy2(src, dst)
-
-    # обновляем sequence
+    # Обновляем счетчик
     with open(SEQUENCE_FILE, "w") as f:
-        f.write(str(commit_id + 1))
+        f.write(str(int(commit_id) + 1))
 
-    print(f"Committed as {commit_id}")
+    print(f"Committed as {commit_id}. Files saved: {files_count}")
+
+
+def checkout(commit_id):
+    commit_root = os.path.join(COMMITS_DIR, str(commit_id), "root")
+    if not os.path.exists(commit_root):
+        print(f"Error: Commit {commit_id} not found")
+        return
+
+    # Очистка текущей папки
+    ignored = get_ignored_patterns()
+    for item in os.listdir("."):
+        if item == MYGIT_DIR:
+            continue
+
+        # удаляем только то, что НЕ в игноре
+        if os.path.isdir(item):
+            shutil.rmtree(item)
+        else:
+            os.remove(item)
+
+    # достаем из архива
+    for root, dirs, files in os.walk(commit_root):
+        rel_root = os.path.relpath(root, commit_root)
+        target_dir = os.path.join(".", rel_root)
+
+        os.makedirs(target_dir, exist_ok=True)
+        for file in files:
+            src = os.path.join(root, file)
+            dst = os.path.join(target_dir, file)
+            shutil.copy2(src, dst)
+
+    print(f"Switched to commit {commit_id}")
