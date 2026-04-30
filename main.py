@@ -82,48 +82,6 @@ def commit(message):
     print(f"Committed as {commit_id}. Files saved: {files_count}")
 
 
-def commit(message):
-    if not os.path.exists(MYGIT_DIR):
-        print("Error: Repository not initialized")
-        return
-
-    # Читаем номер коммита
-    with open(SEQUENCE_FILE, "r") as f:
-        commit_id = f.read().strip()
-
-    ignored = get_ignored_patterns()
-    dest_path = os.path.join(COMMITS_DIR, commit_id, "root")
-
-    files_count = 0
-    # Проходим по всем файлам проекта
-    for root, dirs, files in os.walk("."):
-        for file in files:
-            # Склеиваем полный путь к файлу
-            full_path = os.path.join(root, file)
-            # Делаем его относительным (убираем '.' в начале)
-            rel_path = os.path.relpath(full_path, ".")
-
-            # ПРОВЕРКА: если файл или любая папка (в его пути) в игноре — пропускаем
-            if is_ignored(rel_path, ignored):
-                continue
-
-            # Копируем
-            dst_file = os.path.join(dest_path, rel_path)
-            os.makedirs(os.path.dirname(dst_file), exist_ok=True)
-            shutil.copy2(full_path, dst_file)
-            files_count += 1
-
-    # Сохраняем описание
-    msg_path = os.path.join(COMMITS_DIR, commit_id, "message.txt")
-    with open(msg_path, "w", encoding="utf-8") as f:
-        f.write(message)
-
-    # Обновляем счетчик
-    with open(SEQUENCE_FILE, "w") as f:
-        f.write(str(int(commit_id) + 1))
-
-    print(f"Committed as {commit_id}. Files saved: {files_count}")
-
 
 def checkout(commit_id):
     commit_root = os.path.join(COMMITS_DIR, str(commit_id), "root")
