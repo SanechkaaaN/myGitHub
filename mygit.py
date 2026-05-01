@@ -5,7 +5,7 @@ import shutil
 MYGIT_DIR = ".mygit"
 COMMITS_DIR = os.path.join(MYGIT_DIR, "commits")
 SEQUENCE_FILE = os.path.join(MYGIT_DIR, ".sequence")
-IGNORE_FILE = ".mygitignore"
+IGNORE_FILE = ".gitignore"
 
 
 def get_ignored_patterns():
