@@ -113,3 +113,20 @@ def checkout(commit_id):
             shutil.copy2(src, dst)
 
     print(f"Switched to commit {commit_id}")
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: python mygit.py [init|commit|checkout] [args]")
+        return
+    cmd = sys.argv[1]
+    if cmd == "init":
+        init()
+    elif cmd == "commit" and len(sys.argv) > 2:
+        commit(sys.argv[2])
+    elif cmd == "checkout" and len(sys.argv) > 2:
+        checkout(sys.argv[2])
+    else:
+        print("Invalid command")
+
+if __name__ == "__main__":
+    main()
