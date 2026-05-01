@@ -8,6 +8,7 @@ SEQUENCE_FILE = os.path.join(MYGIT_DIR, ".sequence")
 IGNORE_FILE = ".gitignore"
 
 
+
 def get_ignored_patterns():
     # то что не копировать
     ignored = {MYGIT_DIR, IGNORE_FILE}
@@ -116,7 +117,7 @@ def checkout(commit_id):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python mygit.py [init|commit|checkout] [args]")
+        print("Usage: python main.py [init|commit|checkout] [args]")
         return
     cmd = sys.argv[1]
     if cmd == "init":
